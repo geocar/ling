@@ -33,6 +33,31 @@
 
 #include "bif_impl.h"
 
+term_t cbif_sha256(proc_t *proc, term_t *regs)
+{
+        term_t Data = regs[0];
+
+        if (!is_boxed_binary(Data) && !is_list(Data))
+                badarg(Data);
+
+        int sz = iolist_size(Data);
+        if (sz < 0)
+           assert(sz <= 65536);    //TODO: use heap_tmp_buf for larger Data
+        uint8_t buf[sz];
+        iolist_flatten(Data, buf);
+
+        struct sha256_ctx ctx;
+        sha256_init(&ctx);
+        sha256_update(&ctx, sz, buf);
+
+        uint8_t *ptr;
+        term_t bin = heap_make_bin(&proc->hp, SHA256_DIGEST_SIZE, &ptr);
+        sha256_digest(&ctx, SHA256_DIGEST_SIZE, ptr);
+
+        return bin;
+}
+
+
 term_t cbif_sha1(proc_t *proc, term_t *regs)
 {
 	term_t Data = regs[0];

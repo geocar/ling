@@ -392,6 +392,8 @@ crypto:md5_init()				cbif_md5_init0
 crypto:md5_update(Ctx,IoData)	cbif_md5_update2
 crypto:md5_final(Ctx)			cbif_md5_final1
 
+crypto:sha256(Data)                            cbif_sha256
+
 crypto:sha(Data)				cbif_sha1
 crypto:sha_init()				cbif_sha_init0
 crypto:sha_update(Ctx,Data)		cbif_sha_update2
