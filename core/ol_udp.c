@@ -379,7 +379,7 @@ exit:
 #ifdef LING_WITH_LWIP
 
 static void lwip_recv_cb(void *arg,
-	struct udp_pcb *udp, struct pbuf *data, struct ip_addr *addr, uint16_t port);
+	struct udp_pcb *udp, struct pbuf *data, ip_addr_t *addr, uint16_t port);
 static void lwip_recv_timeout_cb(void *arg);
 
 static term_t
@@ -516,23 +516,28 @@ static int ol_udp_send(outlet_t *ol, int len, term_t reply_to)
 	}
 	else
 #endif
-#if LWIP_IPV6
-	if (ol->udp->local_ip.type == IPADDR_TYPE_V6)
-	{
-		inet_reply_error(ol->oid, reply_to, A_NOT_SUPPORTED);
-		return 0;
-	}
-#endif
 
 	assert(len >= 2);
 	port = GET_UINT_16(data);
 	data += 2;
 	len -= 2;
 
-	assert(len >= 4);
-	ip_addr_set((ip_addr_t *)&addr, (ip_addr_t *)data);
-	data += 4;
-	len -= 4;
+#if LWIP_IPV6
+	if (ol->udp->local_ip.type == IPADDR_TYPE_V6)
+	{
+		assert(len >= 16);
+		ip6_addr_set(&addr, data);
+		data += 16;
+		len -= 16;
+	}
+	else
+#endif
+	{
+		assert(len >= 4);
+		ip4_addr_set(&addr, data);
+		data += 4;
+		len -= 4;
+	}
 	debug("%s(port=0x%04x, addr=0x%x\n", __FUNCTION__, port, addr.addr);
 
 	term_t ret = send_udp_packet(ol, &addr, port, data, len);
@@ -607,11 +612,11 @@ static term_t ol_udp_control(outlet_t *ol,
 		PUT_UINT_16(reply, name_port);
 		reply += 2;
 		if (!is_ipv6) {
-			ip_addr_set_hton((ip_addr_t *)reply, (ip_addr_t *)&ol->udp->local_ip);
+			ip4_addr_set_hton(reply, &ol->udp->local_ip);
 			reply += 4;
 		} else {
 #if LWIP_IPV6
-			ip6_addr_set_hton((ip6_addr_t *)reply, (ip6_addr_t *)&ol->udp->local_ip);
+			ip6_addr_set_hton(reply, &ol->udp->local_ip);
 			reply += 16;
 #else
 			goto error;
@@ -935,7 +940,7 @@ static void uv_on_recv_timeout(uv_timer_t *timeout)
 #if LING_WITH_LWIP
 
 static void lwip_recv_cb(void *arg,
-	struct udp_pcb *udp, struct pbuf *data, struct ip_addr *addr, uint16_t port)
+	struct udp_pcb *udp, struct pbuf *data, ip_addr_t *addr, uint16_t port)
 {
 	phase_expected(PHASE_EVENTS);
 	outlet_t *ol = (outlet_t *)arg;
@@ -950,21 +955,20 @@ static void lwip_recv_cb(void *arg,
 #if LWIP_IPV6
 	int is_ipv6 = ol->udp->local_ip.type == IPADDR_TYPE_V6;
 	if (is_ipv6) {
-		ip6_addr_t *addr6 = (ip6_addr_t*)addr;
 		saddr.saddr.sa_family = AF_INET6;
 		saddr.in6.sin6_port = port;
 		uint32_t *saptr = (uint32_t *)saddr.in6.sin6_addr.s6_addr;
-		saptr[0] = addr6->u_addr.ip6.addr[0];
-		saptr[1] = addr6->u_addr.ip6.addr[1];
-		saptr[2] = addr6->u_addr.ip6.addr[2];
-		saptr[3] = addr6->u_addr.ip6.addr[3];
+		saptr[0] = addr->u_addr.ip6.addr[0];
+		saptr[1] = addr->u_addr.ip6.addr[1];
+		saptr[2] = addr->u_addr.ip6.addr[2];
+		saptr[3] = addr->u_addr.ip6.addr[3];
 	}
 	else
 #endif
 	{
 		saddr.saddr.sa_family = AF_INET;
 		saddr.in.sin_port = port;
-		saddr.in.sin_addr.s_addr = addr->u-addr.ip4.addr;
+		saddr.in.sin_addr.s_addr = addr->u_addr.ip4.addr;
 	}
 
 	udp_on_recv(ol, (void *)data, &saddr.saddr);
