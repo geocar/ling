@@ -430,12 +430,12 @@ static int udp_control_open(outlet_t *ol, int family)
 
 #if LWIP_IPV6
 	ol->udp = (family == INET_AF_INET6)
-		?udp_new_ip6()
-		:udp_new();
+		?udp_new_ip_type(IPADDR_TYPE_V6)
+		:udp_new_ip_type(IPADDR_TYPE_V4);
 #else
 	if (family != INET_AF_INET)
 		return -1;
-	ol->udp = udp_new();
+	ol->udp = udp_new_ip_type(IPADDR_TYPE_V4);
 #endif
 	assert(ol->udp != 0);
 
@@ -453,12 +453,12 @@ static int udp_control_bind(outlet_t *ol, ip_addr_t *addr, uint16_t port)
 	{
 		//debug("UDP: binding %pt to %d.%d.%d.%d:%d\n",
 		//	T(ol->oid), data[2], data[3], data[4], data[5], port);
-		udp_bind(ol->udp, (ip_addr_t *)addr, port); // always succeeds
+		udp_bind(ol->udp, addr, port); // always succeeds
 	}
 	else
 	{
 #if LWIP_IPV6
-		udp_bind_ip6(ol->udp, addr, port); // always succeeds
+		udp_bind(ol->udp, addr, port); // always succeeds
 #else
 		return -1;
 #endif
