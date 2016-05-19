@@ -342,8 +342,8 @@ static int tcp_control_open(outlet_t *ol, int family)
 {
 #if LWIP_IPV6
 	ol->tcp = (family == INET_AF_INET6)
-		?tcp_new_ip6()
-		:tcp_new();
+		?tcp_new_ip_type(IPADDR_TYPE_V6)
+		:tcp_new_ip_type(IPADDR_TYPE_V4);
 #else
 	if (family != INET_AF_INET)
 		return -1;
