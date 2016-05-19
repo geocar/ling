@@ -355,14 +355,18 @@ err_tcp(void *arg, err_t err)
 
   conn->pcb.tcp = NULL;
 
-  /* no check since this is always fatal! */
-  SYS_ARCH_PROTECT(lev);
-  conn->last_err = err;
-  SYS_ARCH_UNPROTECT(lev);
-
   /* reset conn->state now before waking up other threads */
   old_state = conn->state;
   conn->state = NETCONN_NONE;
+
+  if (old_state == NETCONN_CLOSE) {
+    /* RST during close: let close return success & dealloc the netconn */
+    err = ERR_OK;
+    NETCONN_SET_SAFE_ERR(conn, ERR_OK);
+  } else {
+    /* no check since this is always fatal! */
+    SYS_ARCH_SET(conn->last_err, err);
+  }
 
   /* Notify the user layer about a connection error. Used to signal
      select. */

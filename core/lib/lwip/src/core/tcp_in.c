@@ -327,17 +327,6 @@ tcp_input(struct pbuf *p, struct netif *inp)
         TCP_EVENT_ERR(pcb->errf, pcb->callback_arg, ERR_RST);
         tcp_pcb_remove(&tcp_active_pcbs, pcb);
         memp_free(MEMP_TCP_PCB, pcb);
-      } else if (recv_flags & TF_CLOSED) {
-        /* The connection has been closed and we will deallocate the
-           PCB. */
-        if (!(pcb->flags & TF_RXCLOSED)) {
-          /* Connection closed although the application has only shut down the
-             tx side: call the PCB's err callback and indicate the closure to
-             ensure the application doesn't continue using the PCB. */
-          TCP_EVENT_ERR(pcb->errf, pcb->callback_arg, ERR_CLSD);
-        }
-        tcp_pcb_remove(&tcp_active_pcbs, pcb);
-        memp_free(MEMP_TCP_PCB, pcb);
       } else {
         err = ERR_OK;
         /* If the application has registered a "sent" function to be
@@ -348,6 +337,19 @@ tcp_input(struct pbuf *p, struct netif *inp)
           if (err == ERR_ABRT) {
             goto aborted;
           }
+        }
+        if (recv_flags & TF_CLOSED) {
+          /* The connection has been closed and we will deallocate the
+             PCB. */
+          if (!(pcb->flags & TF_RXCLOSED)) {
+            /* Connection closed although the application has only shut down the
+               tx side: call the PCB's err callback and indicate the closure to
+               ensure the application doesn't continue using the PCB. */
+            TCP_EVENT_ERR(pcb->errf, pcb->callback_arg, ERR_CLSD);
+          }
+          tcp_pcb_remove(&tcp_active_pcbs, pcb);
+          memp_free(MEMP_TCP_PCB, pcb);
+          goto aborted;
         }
 
         if (recv_data != NULL) {
