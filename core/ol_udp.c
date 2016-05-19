@@ -110,8 +110,8 @@ send_udp_packet(outlet_t *ol, ip_addr_t *ipaddr, uint16_t port, void *data, uint
 	case INET_AF_INET:
 		saddr.sa.sa_family = AF_INET;
 		saddr.ipv4.sin_port = htons(port);
-		saddr.ipv4.sin_addr.s_addr = ipaddr->addr;
-		debug("%s(ipv4=0x%x, ipport=0x%x)\n", __FUNCTION__, ipaddr->addr, port);
+		saddr.ipv4.sin_addr.s_addr = ipaddr->u_addr.ip4.addr;
+		debug("%s(ipv4=0x%x, ipport=0x%x)\n", __FUNCTION__, ipaddr->u_addr.ip4.addr, port);
 		break;
 
 #if PACKET_CAPTURE_ENABLED
@@ -274,7 +274,7 @@ cleanup:
 	return ret;
 }
 
-static int udp_control_bind(outlet_t *ol, ipX_addr_t *addr, uint16_t port)
+static int udp_control_bind(outlet_t *ol, ip_addr_t *addr, uint16_t port)
 {
 	int ret;
 	saddr_t saddr;
@@ -293,7 +293,7 @@ static int udp_control_bind(outlet_t *ol, ipX_addr_t *addr, uint16_t port)
 	{
 		saddr.saddr.sa_family = AF_INET;
 		saddr.in.sin_port = htons(port);
-		saddr.in.sin_addr.s_addr = htonl(addr->ip4.addr);
+		saddr.in.sin_addr.s_addr = htonl(addr->u_addr.ip4.addr);
 	}
 	ret = uv_udp_bind(ol->udp, &saddr.saddr, 0);
 	if (ret) {
@@ -445,7 +445,7 @@ static int udp_control_open(outlet_t *ol, int family)
 }
 
 /* returns assigned local_port */
-static int udp_control_bind(outlet_t *ol, ipX_addr_t *addr, uint16_t port)
+static int udp_control_bind(outlet_t *ol, ip_addr_t *addr, uint16_t port)
 {
 	assert(ol->udp != 0);
 	int is_ipv6 = PCB_ISIPV6(ol->udp);
@@ -517,7 +517,7 @@ static int ol_udp_send(outlet_t *ol, int len, term_t reply_to)
 
 	uint8_t *data = ol->send_buffer;
 
-	ip_addr_t addr = { .addr = 0 };
+	ip_addr_t addr = {0};
 	uint16_t port = 0;
 
 #if PACKET_CAPTURE_ENABLED
@@ -637,7 +637,7 @@ static term_t ol_udp_control(outlet_t *ol,
 	case INET_REQ_BIND:
 	{
 		uint16_t port = GET_UINT_16(data);
-		ipX_addr_t addr;
+		ip_addr_t addr;
 
 #if PACKET_CAPTURE_ENABLED
 		if (ol->family == INET_AF_PACKET)
@@ -655,12 +655,12 @@ static term_t ol_udp_control(outlet_t *ol,
 			goto error;
 
 		if (is_ipv6_outlet(ol)) {
-			addr.ip6.addr[0] = ntohl(GET_UINT_32(data +2));
-			addr.ip6.addr[1] = ntohl(GET_UINT_32(data +2 +4));
-			addr.ip6.addr[2] = ntohl(GET_UINT_32(data +2 +8));
-			addr.ip6.addr[3] = ntohl(GET_UINT_32(data +2 +12));
+			addr.u_addr.ip6.addr[0] = ntohl(GET_UINT_32(data +2));
+			addr.u_addr.ip6.addr[1] = ntohl(GET_UINT_32(data +2 +4));
+			addr.u_addr.ip6.addr[2] = ntohl(GET_UINT_32(data +2 +8));
+			addr.u_addr.ip6.addr[3] = ntohl(GET_UINT_32(data +2 +12));
 		} else {
-			addr.ip4.addr = ntohl(GET_UINT_32(data +2));
+			addr.u_addr.ip4.addr = ntohl(GET_UINT_32(data +2));
 		}
 
 		debug("%s(BIND): udp_control_bind(0x%x)\n", __FUNCTION__, addr.ip4.addr);
@@ -965,14 +965,14 @@ static void lwip_recv_cb(void *arg,
 		saddr.saddr.sa_family = AF_INET6;
 		saddr.in6.sin6_port = port;
 		uint32_t *saptr = (uint32_t *)saddr.in6.sin6_addr.s6_addr;
-		saptr[0] = addr6->addr[0];
-		saptr[1] = addr6->addr[1];
-		saptr[2] = addr6->addr[2];
-		saptr[3] = addr6->addr[3];
+		saptr[0] = addr6->u_addr.ip6.addr[0];
+		saptr[1] = addr6->u_addr.ip6.addr[1];
+		saptr[2] = addr6->u_addr.ip6.addr[2];
+		saptr[3] = addr6->u_addr.ip6.addr[3];
 	} else {
 		saddr.saddr.sa_family = AF_INET;
 		saddr.in.sin_port = port;
-		saddr.in.sin_addr.s_addr = addr->addr;
+		saddr.in.sin_addr.s_addr = addr->u-addr.ip4.addr;
 	}
 
 	udp_on_recv(ol, (void *)data, &saddr.saddr);

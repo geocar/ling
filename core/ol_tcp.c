@@ -1067,7 +1067,7 @@ static term_t ol_tcp_control(outlet_t *ol,
 		PUT_UINT_16(reply, sockaddr_port(&sockaddr.saddr));
 		reply += 2;
 
-		size_t alen = saddr_to_ipaddr(&sockaddr, (ipX_addr_t *)reply);
+		size_t alen = saddr_to_ipaddr(&sockaddr, (ip4_addr_t *)reply);
 		reply += alen;
 	}
 

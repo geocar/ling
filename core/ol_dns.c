@@ -115,7 +115,7 @@ static void send_reply(outlet_t *ol,
 	*p++ = UNIT_IPV4;
 	PUT_UINT_32(p, 1);
 	p += 4;
-	uint32_t a = PP_HTONL(ipaddr->addr);
+	uint32_t a = PP_HTONL(ipaddr->u_addr.ip4.addr);
 	PUT_UINT_32(p, a);
 	p += 4;
 	PUT_UINT_32(p, 1);
@@ -194,7 +194,7 @@ static void on_resolved(uv_getaddrinfo_t *req, int status, struct addrinfo *res)
 
     unsigned long ip = ((struct sockaddr_in *)res->ai_addr)->sin_addr.s_addr;
     assert(ip < (1ul << 32));
-    ipaddr.addr = (uint32_t)ip;
+    ipaddr.u_addr.ip4.addr = (uint32_t)ip;
 
     found_cb(dr->host, (status ? NULL : &ipaddr), dr);
 }

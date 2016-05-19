@@ -21,27 +21,39 @@
 #else
 # include <netinet/in.h>
 
-typedef struct ip_addr {
+typedef struct ip4_addr {
     uint32_t addr;
-} ip_addr_t;
+} ip4_addr_t;
 
 typedef struct ip6_addr {
     uint32_t addr[4];
 } ip6_addr_t;
 
-typedef union {
-    ip_addr_t ip4;
+typedef struct ip_addr {
+  union {
     ip6_addr_t ip6;
-} ipX_addr_t;
+    ip4_addr_t ip4;
+  } u_addr;
+} ip_addr_t;
+
 
 static inline void
 ip_addr_set_zero(ip_addr_t *ipaddr) {
-    ipaddr->addr = 0;
+    ipaddr->u_addr.ip4.addr    = 0;
+    ipaddr->u_addr.ip6.addr[0] = 0;
+    ipaddr->u_addr.ip6.addr[1] = 0;
+    ipaddr->u_addr.ip6.addr[2] = 0;
+    ipaddr->u_addr.ip6.addr[3] = 0;
 }
 
-#define ip_addr_set(dest, src) ((dest)->addr = \
-                                    ((src) == NULL ? 0 : \
-                                    (src)->addr))
+static inline void
+ip_addr_set(ip_addr_t *dest, ip_addr_t *src) {
+    if(!src) return;
+    dest->u_addr.ip6.addr[0] = dest->u_addr.ip6.addr[0];
+    dest->u_addr.ip6.addr[1] = dest->u_addr.ip6.addr[1];
+    dest->u_addr.ip6.addr[2] = dest->u_addr.ip6.addr[2];
+    dest->u_addr.ip6.addr[3] = dest->u_addr.ip6.addr[3];
+}
 
 typedef void (*netif_status_callback_fn)();
 
@@ -77,7 +89,7 @@ get_ipv6_nth(const uint8_t addr[16], unsigned nth)
 }
 
 static inline void
-sockaddrin_to_ipaddr(const struct sockaddr_in *sin, ip_addr_t *addr)
+sockaddrin_to_ipaddr(const struct sockaddr_in *sin, ip4_addr_t *addr)
 {
 	addr->addr = sin->sin_addr.s_addr;
 }
@@ -93,14 +105,14 @@ sockaddrin6_to_ip6addr(const struct sockaddr_in6 *sin6, ip6_addr_t *addr)
 }
 
 static inline size_t
-saddr_to_ipaddr(const saddr_t *saddr, ipX_addr_t *addr)
+saddr_to_ipaddr(const saddr_t *saddr, ip_addr_t *addr)
 {
 	switch (saddr->saddr.sa_family) {
 	case AF_INET:
-		sockaddrin_to_ipaddr(&saddr->in, &addr->ip4);
+		sockaddrin_to_ipaddr(&saddr->in, &addr->u_addr.ip4);
 		return 4;
 	case AF_INET6:
-		sockaddrin6_to_ip6addr(&saddr->in6, &addr->ip6);
+		sockaddrin6_to_ip6addr(&saddr->in6, &addr->u_addr.ip6);
 		return 16;
 	}
 	return 0;
