@@ -416,6 +416,8 @@ static inline int udp_recv_stop(outlet_t *ol)
 	return 0;
 }
 
+extern void sys_timeout_adj(u32_t msecs, sys_timeout_handler handler, void *arg);
+
 static inline int udp_recv_set_timeout(outlet_t *ol, unsigned int msecs)
 {
 	sys_timeout_adj(msecs, lwip_recv_timeout_cb, ol);
@@ -536,7 +538,9 @@ static int ol_udp_send(outlet_t *ol, int len, term_t reply_to)
 	{
 		assert(len >= 4);
 		memcpy(&addr.u_addr.ip4, data, 4);
+#if LING_WITH_LWIP
 		addr.type = IPADDR_TYPE_V4;
+#endif
 		data += 4;
 		len -= 4;
 	}
@@ -1008,7 +1012,12 @@ static void udp_on_recv(outlet_t *ol, const void *pbuf, const struct sockaddr *a
 	RECV_PKT_COPY(ptr, data, dlen);
 	RECV_PKT_FREE(data);
 
+#if LING_WITH_LWIP
 	int is_ipv6 = ol->udp->local_ip.type == IPADDR_TYPE_V6;
+#else
+	int is_ipv6 = 0;
+#endif
+
 	uint8_t *addrptr = (is_ipv6
 	            ? (uint8_t *)&((struct sockaddr_in6 *)addr)->sin6_addr
 	            : (uint8_t *)&((struct sockaddr_in *)addr)->sin_addr);

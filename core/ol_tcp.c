@@ -206,6 +206,8 @@ int ol_tcp_set_nodelay(outlet_t *ol, bool nodelay)
 /*
  *    LWIP timeouts
  */
+extern void sys_timeout_adj(u32_t msecs, sys_timeout_handler handler, void *arg);
+
 static void
 tcp_set_recv_timeout(outlet_t *ol, uint32_t millis)
 {

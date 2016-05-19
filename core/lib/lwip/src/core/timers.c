@@ -456,3 +456,38 @@ tcp_timer_needed(void)
 {
 }
 #endif /* LWIP_TIMERS */
+
+
+//MK
+//
+// A more precise interface to sys_timeout(). 'msecs' parameters passed to
+// sys_timeout() indicate the number of milliseconds since timeouts_last_time.
+// This is not a problem for lwip code where everything happens inside a timeout
+// callback after timeouts_last_time has been set to sys_now(). For Ling code
+// there may be an arbitrary difference between sys_now() and
+// timeouts_last_time. Hence, this function.
+//
+void
+sys_timeout_adj(u32_t msecs, sys_timeout_handler handler, void *arg)
+{
+	u32_t now = sys_now();
+
+	//MK
+	//
+	// +2 silences insures that timeouts are not fired ahead of time. The
+	// probable cause if accumulation of errrors when converting from ns to ms.
+	//
+	//NB: they say that unsigned arithmetics never overflows
+	u32_t adj_msecs = now +msecs +2 -timeouts_last_time;
+	sys_timeout(adj_msecs, handler, arg);
+}
+
+//MK
+// Returns the expiry moment for the closest timeout.
+uint32_t sys_closest_timeout(void)
+{
+	if (next_timeout == 0)
+		return 0xffffffff;
+
+	return timeouts_last_time + next_timeout->time;
+}

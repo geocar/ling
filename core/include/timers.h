@@ -49,7 +49,5 @@ void etimer_cancel_by_receiver(term_t dst);
 int etimer_read(uint64_t ref_id, int64_t *left_ns);
 void etimer_fill_root_regs(proc_t *sender, region_t *regs, int nr_expected);
 
-void sys_timeout_adj(u32_t msecs, sys_timeout_handler handler, void *arg);
-
 
 //EOF

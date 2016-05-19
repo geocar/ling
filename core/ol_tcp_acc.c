@@ -189,6 +189,8 @@ static void tcp_close_pending(struct acc_pend_t *pend)
 /*
  *    Timers and timeouts
  */
+extern void sys_timeout_adj(u32_t msecs, sys_timeout_handler handler, void *arg);
+
 static void tcp_accept_timeout(void *ctx, uint32_t millis)
 {
 	sys_timeout_adj(millis, accept_timeout_cb, ctx);
