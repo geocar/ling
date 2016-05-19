@@ -373,15 +373,15 @@ static int tcp_control_bind(outlet_t *ol, const saddr_t *saddr)
 	if (saddr->saddr.sa_family == AF_INET)
 	{
 		ip_addr_t addr;
-		sockaddrin_to_ipaddr(&saddr->in, &addr);
+		sockaddrin_to_ipaddr(&saddr->in, &addr.u_addr.ip4);
 		addr.type = IPADDR_TYPE_V4;
 		tcp_bind(ol->tcp, &addr, local_port); // always succeeds
 	}
 	else
 	{
 #if LWIP_IPV6
-		ip6_addr_t addr;
-		sockaddrin6_to_ip6addr(&saddr->in6, &addr);
+		ip_addr_t addr;
+		sockaddrin6_to_ip6addr(&saddr->in6, &addr.u_addr.ip6);
 		addr.type = IPADDR_TYPE_V6;
 		tcp_bind(ol->tcp, &addr, local_port); // always succeeds
 #else
