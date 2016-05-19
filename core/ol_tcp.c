@@ -422,13 +422,13 @@ static inline int tcp_control_peername(outlet_t *ol, saddr_t *saddr)
 	{
 		saddr->saddr.sa_family = AF_INET;
 		saddr->in.sin_port = ol->tcp->remote_port;
-		memcpy((void*)saddr->in.sin_addr.s_addr, &ol->tcp->remote_ip.ip4, 4);
+		memcpy((void*)saddr->in.sin_addr.s_addr, &ol->tcp->remote_ip.u_addr.ip4, 4);
 		return 0;
 	}
 #if LWIP_IPV6
 	saddr->saddr.sa_family = AF_INET6;
 	saddr->in6.sin6_port = ol->tcp->remote_port;
-	memcpy((void *)&saddr->in6.sin6_addr.s6_addr, &ol->tcp->remote_ip.ip6, 16);
+	memcpy((void *)&saddr->in6.sin6_addr.s6_addr, &ol->tcp->remote_ip.u_addr.ip6, 16);
 	return 0;
 #else
 	return -1;
