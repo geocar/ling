@@ -396,14 +396,16 @@ static int tcp_control_connect(outlet_t *ol, saddr_t *saddr)
 	{
 		ip_addr_t where_to;
 		sockaddrin_to_ipaddr(&saddr->in, &where_to);
+		where_to.type = IPADDR_TYPE_V4;
 		err = tcp_connect(ol->tcp, &where_to, remote_port, connected_cb);
 	}
 	else
 	{
 #if LWIP_IPV6
-		ip6_addr_t where_to;
+		ip_addr_t where_to;
 		sockaddrin6_to_ip6addr(&saddr->in6, &where_to);
-		err = tcp_connect_ip6(ol->tcp, &where_to, remote_port, connected_cb);
+		where_to.type = IPADDR_TYPE_V6;
+		err = tcp_connect(ol->tcp, &where_to, remote_port, connected_cb);
 #else
 		return -1;
 #endif
@@ -420,13 +422,13 @@ static inline int tcp_control_peername(outlet_t *ol, saddr_t *saddr)
 	{
 		saddr->saddr.sa_family = AF_INET;
 		saddr->in.sin_port = ol->tcp->remote_port;
-		saddr->in.sin_addr.s_addr = ntohl(ol->tcp->remote_ip.ip4.addr);
+		memcpy((void*)saddr->in.sin_addr.s_addr, &ol->tcp->remote_ip.ip4, 4);
 		return 0;
 	}
 #if LWIP_IPV6
 	saddr->saddr.sa_family = AF_INET6;
 	saddr->in6.sin6_port = ol->tcp->remote_port;
-	memcpy((void *)&saddr->in6.sin6_addr.s6_addr, &ol->tcp->remote_port, 16);
+	memcpy((void *)&saddr->in6.sin6_addr.s6_addr, &ol->tcp->remote_ip.ip6, 16);
 	return 0;
 #else
 	return -1;
@@ -964,11 +966,7 @@ static term_t ol_tcp_control(outlet_t *ol,
 		if (is_ipv6) {
 			saddr.saddr.sa_family = AF_INET6;
 			saddr.in6.sin6_port = remote_port;
-			uint32_t *in6addr = (uint32_t *)saddr.in6.sin6_addr.s6_addr;
-			in6addr[0] = ntohl(GET_UINT_32(data +4 +2));
-			in6addr[1] = ntohl(GET_UINT_32(data +4 +2 +4));
-			in6addr[2] = ntohl(GET_UINT_32(data +4 +2 +8));
-			in6addr[3] = ntohl(GET_UINT_32(data +4 +2 +12));
+			memcpy((uint32_t *)saddr.in6.sin6_addr.s6_addr, data, 16);
 		} else {
 			saddr.saddr.sa_family = AF_INET;
 			saddr.in.sin_port = remote_port;
@@ -1060,7 +1058,7 @@ static term_t ol_tcp_control(outlet_t *ol,
 		PUT_UINT_16(reply, sockaddr_port(&sockaddr.saddr));
 		reply += 2;
 
-		size_t alen = saddr_to_ipaddr(&sockaddr, (ip4_addr_t *)reply);
+		size_t alen = saddr_to_ipaddr(&sockaddr, (void*)reply);
 		reply += alen;
 	}
 
