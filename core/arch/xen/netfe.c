@@ -1060,17 +1060,17 @@ int build_getifaddrs_reply(char *buf, int sz)
 				more(1 +1 +4);
 				*p++ = INET_IFOPT_ADDR;
 				*p++ = INET_AF_INET;
-				*p++ = ip4_addr1(&nf->ip_addr);
-				*p++ = ip4_addr2(&nf->ip_addr);
-				*p++ = ip4_addr3(&nf->ip_addr);
-				*p++ = ip4_addr4(&nf->ip_addr);
+				*p++ = ip4_addr1(&nf->ip_addr.u_addr.ip4);
+				*p++ = ip4_addr2(&nf->ip_addr.u_addr.ip4);
+				*p++ = ip4_addr3(&nf->ip_addr.u_addr.ip4);
+				*p++ = ip4_addr4(&nf->ip_addr.u_addr.ip4);
 				more(1 +1 +4);
 				*p++ = INET_IFOPT_NETMASK;
 				*p++ = INET_AF_INET;
-				*p++ = ip4_addr1(&nf->netmask);
-				*p++ = ip4_addr2(&nf->netmask);
-				*p++ = ip4_addr3(&nf->netmask);
-				*p++ = ip4_addr4(&nf->netmask);
+				*p++ = ip4_addr1(&nf->netmask.u_addr.ip4);
+				*p++ = ip4_addr2(&nf->netmask.u_addr.ip4);
+				*p++ = ip4_addr3(&nf->netmask.u_addr.ip4);
+				*p++ = ip4_addr4(&nf->netmask.u_addr.ip4);
 			}
 		}
 
