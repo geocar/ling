@@ -42,6 +42,7 @@
 #endif
 
 #include <stdio.h> /* formats */
+#include <stddef.h> /* for size_t */
 #include <stdarg.h>
 #include <string.h>
 #include <stdlib.h> /* strtol() */
