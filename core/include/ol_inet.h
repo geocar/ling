@@ -235,11 +235,6 @@ term_t termerror(int err);
 
 term_t lwip_err_to_term(err_t err);
 
-static inline int is_ipv6_outlet(outlet_t *ol)
-{
-	return PCB_ISIPV6(ol->udp);
-}
-
 static inline int tcp_get_nodelay(outlet_t *ol)
 {
 	return tcp_nagle_disabled(ol->tcp);

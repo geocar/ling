@@ -370,7 +370,6 @@ static int tcp_control_bind(outlet_t *ol, const saddr_t *saddr)
 	uint16_t local_port = sockaddr_port(&saddr->saddr);
 	if (saddr->saddr.sa_family == AF_INET)
 	{
-		assert(!is_ipv6_outlet(ol));
 		ip_addr_t addr;
 		sockaddrin_to_ipaddr(&saddr->in, &addr);
 		tcp_bind(ol->tcp, &addr, local_port); // always succeeds
@@ -378,7 +377,6 @@ static int tcp_control_bind(outlet_t *ol, const saddr_t *saddr)
 	else
 	{
 #if LWIP_IPV6
-		assert(is_ipv6_outlet(ol));
 		ip6_addr_t addr;
 		sockaddrin6_to_ip6addr(&saddr->in6, &addr);
 		tcp_bind_ip6(ol->tcp, &addr, local_port); // always succeeds
@@ -394,17 +392,14 @@ static int tcp_control_connect(outlet_t *ol, saddr_t *saddr)
 {
 	err_t err;
 	uint16_t remote_port = sockaddr_port(&saddr->saddr);
-	int is_ipv6 = is_ipv6_outlet(ol);
-	if (!is_ipv6)
+	if (saddr->saddr.sa_family == AF_INET)
 	{
-		assert(saddr->saddr.sa_family == AF_INET);
 		ip_addr_t where_to;
 		sockaddrin_to_ipaddr(&saddr->in, &where_to);
 		err = tcp_connect(ol->tcp, &where_to, remote_port, connected_cb);
 	}
 	else
 	{
-		assert(saddr->saddr.sa_family == AF_INET6);
 #if LWIP_IPV6
 		ip6_addr_t where_to;
 		sockaddrin6_to_ip6addr(&saddr->in6, &where_to);
@@ -421,21 +416,21 @@ static int tcp_control_connect(outlet_t *ol, saddr_t *saddr)
 
 static inline int tcp_control_peername(outlet_t *ol, saddr_t *saddr)
 {
-	if (PCB_ISIPV6(ol->tcp))
+	if (saddr->saddr.sa_family == AF_INET)
 	{
-#if LWIP_IPV6
-		saddr->saddr.sa_family = AF_INET6;
-		saddr->in6.sin6_port = ol->tcp->remote_port;
-		memcpy((void *)&saddr->in6.sin6_addr.s6_addr, &ol->tcp->remote_port, 16);
+		saddr->saddr.sa_family = AF_INET;
+		saddr->in.sin_port = ol->tcp->remote_port;
+		saddr->in.sin_addr.s_addr = ntohl(ol->tcp->remote_ip.ip4.addr);
 		return 0;
-#else
-		return -1;
-#endif
 	}
-	saddr->saddr.sa_family = AF_INET;
-	saddr->in.sin_port = ol->tcp->remote_port;
-	saddr->in.sin_addr.s_addr = ntohl(ol->tcp->remote_ip.ip4.addr);
+#if LWIP_IPV6
+	saddr->saddr.sa_family = AF_INET6;
+	saddr->in6.sin6_port = ol->tcp->remote_port;
+	memcpy((void *)&saddr->in6.sin6_addr.s6_addr, &ol->tcp->remote_port, 16);
 	return 0;
+#else
+	return -1;
+#endif
 }
 
 static int tcp_send_buffer(outlet_t *ol)
@@ -462,21 +457,21 @@ static int tcp_send_buffer(outlet_t *ol)
 
 int ol_tcp_getsockname(outlet_t *ol, saddr_t *saddr)
 {
-	if (is_ipv6_outlet(ol))
+	if (saddr->saddr.sa_family == AF_INET)
 	{
-#if LWIP_IPV6
-		saddr->saddr.sa_family = AF_INET6;
-		saddr->in6.sin6_port = htons(ol->tcp->local_port);
-		memcpy(saddr->in6.sin6_addr.s6_addr, (void *)&ol->tcp->local_ip, 16);
+		saddr->saddr.sa_family = AF_INET;
+		saddr->in.sin_port = htons(ol->tcp->local_port);
+		saddr->in.sin_addr.s_addr = *(uint32_t *)&ol->tcp->local_ip;
 		return 0;
-#else
-		return -1;
-#endif
 	}
-	saddr->saddr.sa_family = AF_INET;
-	saddr->in.sin_port = htons(ol->tcp->local_port);
-	saddr->in.sin_addr.s_addr = *(uint32_t *)&ol->tcp->local_ip;
+#if LWIP_IPV6
+	saddr->saddr.sa_family = AF_INET6;
+	saddr->in6.sin6_port = htons(ol->tcp->local_port);
+	memcpy(saddr->in6.sin6_addr.s6_addr, (void *)&ol->tcp->local_ip, 16);
 	return 0;
+#else
+	return -1;
+#endif
 }
 
 void ol_tcp_close(outlet_t *ol)
@@ -960,9 +955,7 @@ static term_t ol_tcp_control(outlet_t *ol,
 
 	case INET_REQ_CONNECT:
 	{
-		int is_ipv6 = is_ipv6_outlet(ol);
-		if ((is_ipv6 && dlen != 4 +2 +16) || (!is_ipv6 && dlen != 4 +2 +4))
-			goto error;
+		int is_ipv6 = (dlen == 4+2+16);
 
 		uint32_t timeout = GET_UINT_32(data);
 		uint16_t remote_port = htons(GET_UINT_16(data +4));
@@ -1076,9 +1069,7 @@ static term_t ol_tcp_control(outlet_t *ol,
 	case INET_REQ_BIND:
 	{
 		saddr_t saddr;
-		int is_ipv6 = is_ipv6_outlet(ol);
-		if ((is_ipv6 && dlen != 2 +16) || (!is_ipv6 && dlen != 2 +4))
-			goto error;
+		int is_ipv6 = (dlen == 2+16);
 		uint16_t port = GET_UINT_16(data);
 
 		if (!is_ipv6)

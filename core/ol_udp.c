@@ -279,21 +279,25 @@ static int udp_control_bind(outlet_t *ol, ip_addr_t *addr, uint16_t port)
 	int ret;
 	saddr_t saddr;
 
-	assert(ol->family == INET_AF_INET6 || ol->family == INET_AF_INET);
-
 	debug("%s(addr=0x%x, port=%d)\n", __FUNCTION__, addr->ip4.addr, (int)port);
 
-	if (is_ipv6_outlet(ol))
-	{
-		saddr.saddr.sa_family = AF_INET6;
-		saddr.in6.sin6_port = htons(port);
-		memcpy(saddr.in6.sin6_addr.s6_addr, addr, 16);
-	}
-	else
+	if (ol->family == INET_AF_INET)
 	{
 		saddr.saddr.sa_family = AF_INET;
 		saddr.in.sin_port = htons(port);
 		saddr.in.sin_addr.s_addr = htonl(addr->u_addr.ip4.addr);
+	}
+	else
+	{
+#if LWIP_IPV6
+		if (ol->family == INET_AF_INET6) {
+			saddr.saddr.sa_family = AF_INET6;
+			saddr.in6.sin6_port = htons(port);
+			memcpy(saddr.in6.sin6_addr.s6_addr, addr, 16);
+		}
+#else
+		return -1;
+#endif
 	}
 	ret = uv_udp_bind(ol->udp, &saddr.saddr, 0);
 	if (ret) {
@@ -448,22 +452,7 @@ static int udp_control_open(outlet_t *ol, int family)
 static int udp_control_bind(outlet_t *ol, ip_addr_t *addr, uint16_t port)
 {
 	assert(ol->udp != 0);
-	int is_ipv6 = PCB_ISIPV6(ol->udp);
-	if (!is_ipv6)
-	{
-		//debug("UDP: binding %pt to %d.%d.%d.%d:%d\n",
-		//	T(ol->oid), data[2], data[3], data[4], data[5], port);
-		udp_bind(ol->udp, addr, port); // always succeeds
-	}
-	else
-	{
-#if LWIP_IPV6
-		udp_bind(ol->udp, addr, port); // always succeeds
-#else
-		return -1;
-#endif
-	}
-
+	udp_bind(ol->udp, addr, port); // always succeeds
 	return ol->udp->local_port;
 }
 
@@ -527,24 +516,24 @@ static int ol_udp_send(outlet_t *ol, int len, term_t reply_to)
 	}
 	else
 #endif
-	if (is_ipv6_outlet(ol))
+#if LWIP_IPV6
+	if (ol->udp->local_ip.type == IPADDR_TYPE_V6)
 	{
 		inet_reply_error(ol->oid, reply_to, A_NOT_SUPPORTED);
 		return 0;
 	}
-	else
-	{
-		assert(len >= 2);
-		port = GET_UINT_16(data);
-		data += 2;
-		len -= 2;
+#endif
 
-		assert(len >= 4);
-		ip_addr_set((ip_addr_t *)&addr, (ip_addr_t *)data);
-		data += 4;
-		len -= 4;
-		debug("%s(port=0x%04x, addr=0x%x\n", __FUNCTION__, port, addr.addr);
-	}
+	assert(len >= 2);
+	port = GET_UINT_16(data);
+	data += 2;
+	len -= 2;
+
+	assert(len >= 4);
+	ip_addr_set((ip_addr_t *)&addr, (ip_addr_t *)data);
+	data += 4;
+	len -= 4;
+	debug("%s(port=0x%04x, addr=0x%x\n", __FUNCTION__, port, addr.addr);
 
 	term_t ret = send_udp_packet(ol, &addr, port, data, len);
 
@@ -611,7 +600,7 @@ static term_t ol_udp_control(outlet_t *ol,
 #if LING_WITH_LWIP
 		*reply++ = INET_REP_OK;
 		uint16_t name_port = ol->udp->local_port;
-		int is_ipv6 = PCB_ISIPV6(ol->udp);
+		int is_ipv6 = ol->udp->local_ip.type == IPADDR_TYPE_V6;
 		*reply++ = (is_ipv6)
 			?INET_AF_INET6
 			:INET_AF_INET;
@@ -651,10 +640,7 @@ static term_t ol_udp_control(outlet_t *ol,
 			break;
 		}
 #endif
-		if (dlen != 2 + (is_ipv6_outlet(ol) ? 16 : 4))
-			goto error;
-
-		if (is_ipv6_outlet(ol)) {
+		if (dlen == (2+16)) {
 			addr.u_addr.ip6.addr[0] = ntohl(GET_UINT_32(data +2));
 			addr.u_addr.ip6.addr[1] = ntohl(GET_UINT_32(data +2 +4));
 			addr.u_addr.ip6.addr[2] = ntohl(GET_UINT_32(data +2 +8));
@@ -960,7 +946,10 @@ static void lwip_recv_cb(void *arg,
 	assert(ol->udp == udp);
 
 	saddr_t saddr;
-	if (PCB_ISIPV6(udp)) {
+
+#if LWIP_IPV6
+	int is_ipv6 = ol->udp->local_ip.type == IPADDR_TYPE_V6;
+	if (is_ipv6) {
 		ip6_addr_t *addr6 = (ip6_addr_t*)addr;
 		saddr.saddr.sa_family = AF_INET6;
 		saddr.in6.sin6_port = port;
@@ -969,7 +958,10 @@ static void lwip_recv_cb(void *arg,
 		saptr[1] = addr6->u_addr.ip6.addr[1];
 		saptr[2] = addr6->u_addr.ip6.addr[2];
 		saptr[3] = addr6->u_addr.ip6.addr[3];
-	} else {
+	}
+	else
+#endif
+	{
 		saddr.saddr.sa_family = AF_INET;
 		saddr.in.sin_port = port;
 		saddr.in.sin_addr.s_addr = addr->u-addr.ip4.addr;
@@ -1010,7 +1002,7 @@ static void udp_on_recv(outlet_t *ol, const void *pbuf, const struct sockaddr *a
 	RECV_PKT_COPY(ptr, data, dlen);
 	RECV_PKT_FREE(data);
 
-	int is_ipv6 = is_ipv6_outlet(ol);
+	int is_ipv6 = ol->udp->local_ip.type == IPADDR_TYPE_V6;
 	uint8_t *addrptr = (is_ipv6
 	            ? (uint8_t *)&((struct sockaddr_in6 *)addr)->sin6_addr
 	            : (uint8_t *)&((struct sockaddr_in *)addr)->sin_addr);
