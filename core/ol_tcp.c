@@ -372,6 +372,7 @@ static int tcp_control_bind(outlet_t *ol, const saddr_t *saddr)
 	{
 		ip_addr_t addr;
 		sockaddrin_to_ipaddr(&saddr->in, &addr);
+		addr.type = IPADDR_TYPE_V4;
 		tcp_bind(ol->tcp, &addr, local_port); // always succeeds
 	}
 	else
@@ -379,7 +380,8 @@ static int tcp_control_bind(outlet_t *ol, const saddr_t *saddr)
 #if LWIP_IPV6
 		ip6_addr_t addr;
 		sockaddrin6_to_ip6addr(&saddr->in6, &addr);
-		tcp_bind_ip6(ol->tcp, &addr, local_port); // always succeeds
+		addr.type = IPADDR_TYPE_V6;
+		tcp_bind(ol->tcp, &addr, local_port); // always succeeds
 #else
 		return -1;
 #endif
