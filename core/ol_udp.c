@@ -526,7 +526,8 @@ static int ol_udp_send(outlet_t *ol, int len, term_t reply_to)
 	if (ol->udp->local_ip.type == IPADDR_TYPE_V6)
 	{
 		assert(len >= 16);
-		ip6_addr_set(&addr, data);
+		ip6_addr_set(&addr.u_addr.ip6, data);
+		addr.type = IPADDR_TYPE_V6;
 		data += 16;
 		len -= 16;
 	}
@@ -534,7 +535,8 @@ static int ol_udp_send(outlet_t *ol, int len, term_t reply_to)
 #endif
 	{
 		assert(len >= 4);
-		ip4_addr_set(&addr, data);
+		ip4_addr_set(&addr.u_addr.ip4, data);
+		addr.type = IPADDR_TYPE_V4;
 		data += 4;
 		len -= 4;
 	}
@@ -612,11 +614,11 @@ static term_t ol_udp_control(outlet_t *ol,
 		PUT_UINT_16(reply, name_port);
 		reply += 2;
 		if (!is_ipv6) {
-			ip4_addr_set_hton(reply, &ol->udp->local_ip);
+			ip4_addr_set_hton(reply, &ol->udp->local_ip.u_addr.ip4);
 			reply += 4;
 		} else {
 #if LWIP_IPV6
-			ip6_addr_set_hton(reply, &ol->udp->local_ip);
+			ip6_addr_set_hton(reply, &ol->udp->local_ip.u_addr.ip6);
 			reply += 16;
 #else
 			goto error;
