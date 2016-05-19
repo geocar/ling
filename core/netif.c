@@ -44,6 +44,7 @@
 #include "netif.h"
 #if LING_WITH_LWIP
 # include "lwip/stats.h"
+# include "lwip/snmp.h"
 # include "lwip/dhcp.h"
 # include "netif/etharp.h"
 #elif LING_WITH_LIBUV
